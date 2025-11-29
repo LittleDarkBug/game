@@ -10,41 +10,70 @@ const MAX_VELOCITY = 0.3
 export const Player = () => {
     const meshRef = useRef<THREE.Mesh>(null)
     const velocity = useRef(new THREE.Vector3(0, 0, 0))
-    const currentPosition = useRef(new THREE.Vector3(0, 0, 0)) // Position centrée
+    const currentPosition = useRef(new THREE.Vector3(0, 0, 0))
 
     const magnetPoint = useGameStore((state) => state.magnetPoint)
     const isPlaying = useGameStore((state) => state.isPlaying)
+    const gameId = useGameStore((state) => state.gameId)
+
+    // Track game start time for progressive forces
+    const gameStartTime = useRef(0)
+
+    // Reset position and velocity when game starts
+    const lastGameId = useRef(-1)
+    if (gameId !== lastGameId.current) {
+        lastGameId.current = gameId
+        gameStartTime.current = Date.now()
+        currentPosition.current.set(0, 0, 0)
+        velocity.current.set(0, 0, 0)
+
+        // Update playerPositionRef in store
+        const playerPosRef = useGameStore.getState().playerPositionRef
+        playerPosRef.set(0, 0, 0)
+
+        if (meshRef.current) {
+            meshRef.current.position.set(0, 0, 0)
+        }
+    }
 
     useFrame((state, delta) => {
         if (!meshRef.current) return
 
-        // Bob animation when not playing
+        // Bob animation when not playing (centered at y=0)
         if (!isPlaying) {
             const time = state.clock.elapsedTime
-            meshRef.current.position.y = -3 + Math.sin(time * 2) * 0.1
+            meshRef.current.position.y = 0 + Math.sin(time * 2) * 0.1
             return
         }
 
-        // Centrifugal Force (Push away from center to prevent camping)
-        const distanceFromCenter = Math.sqrt(
-            currentPosition.current.x ** 2 +
-            currentPosition.current.y ** 2
-        )
+        // Progressive Centrifugal Force (starts after 2 seconds, increases over 3 seconds)
+        const timeSinceStart = Date.now() - gameStartTime.current
+        let centrifugalMultiplier = 0
 
-        // Force increases as you get closer to center (inverse distance)
-        // But we want a constant push out
-        const centrifugalStrength = 2.0 * delta
-        if (distanceFromCenter > 0.1) {
-            const pushDir = new THREE.Vector3()
-                .copy(currentPosition.current)
-                .normalize()
-                .multiplyScalar(centrifugalStrength)
+        if (timeSinceStart > 2000) {
+            // Fade in centrifugal force from 2s to 5s
+            centrifugalMultiplier = Math.min(1, (timeSinceStart - 2000) / 3000)
+        }
 
-            velocity.current.add(pushDir)
-        } else {
-            // If dead center, push in random direction
-            velocity.current.x += (Math.random() - 0.5) * centrifugalStrength
-            velocity.current.y += (Math.random() - 0.5) * centrifugalStrength
+        if (centrifugalMultiplier > 0) {
+            const distanceFromCenter = Math.sqrt(
+                currentPosition.current.x ** 2 +
+                currentPosition.current.y ** 2
+            )
+
+            const centrifugalStrength = 2.0 * delta * centrifugalMultiplier
+            if (distanceFromCenter > 0.1) {
+                const pushDir = new THREE.Vector3()
+                    .copy(currentPosition.current)
+                    .normalize()
+                    .multiplyScalar(centrifugalStrength)
+
+                velocity.current.add(pushDir)
+            } else {
+                // If dead center, push in random direction
+                velocity.current.x += (Math.random() - 0.5) * centrifugalStrength
+                velocity.current.y += (Math.random() - 0.5) * centrifugalStrength
+            }
         }
 
         // Magnetic attraction physics & Energy System
@@ -54,7 +83,7 @@ export const Player = () => {
         if (magnetPoint?.active) {
             if (energy > 0) {
                 // Drain energy
-                setEnergy(energy - (30 * delta)) // Drain full in ~3.3 seconds
+                setEnergy(energy - (30 * delta))
 
                 const target = magnetPoint.position
                 const current = currentPosition.current
@@ -66,7 +95,7 @@ export const Player = () => {
                 const distance = direction.length()
 
                 if (distance > 0.1) {
-                    // Apply force based on distance (inverse square law for realism)
+                    // Apply force based on distance
                     const forceMagnitude = MAGNET_STRENGTH * delta
                     direction.normalize().multiplyScalar(forceMagnitude)
 
@@ -77,7 +106,7 @@ export const Player = () => {
         } else {
             // Regenerate energy
             if (energy < 100) {
-                setEnergy(energy + (15 * delta)) // Regenerate full in ~6.6 seconds
+                setEnergy(energy + (15 * delta))
             }
         }
 

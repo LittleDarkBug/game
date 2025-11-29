@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Scene } from './components/game/Scene'
 import { TunnelController } from './components/game/TunnelController'
 import { AudioController } from './components/game/AudioController'
@@ -9,6 +10,27 @@ import { PauseMenu } from './components/ui/PauseMenu'
 import { HUD } from './components/ui/HUD'
 
 function App() {
+  // Request fullscreen on any user interaction
+  useEffect(() => {
+    const requestFullscreen = () => {
+      const elem = document.documentElement
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(() => {
+          // Ignore errors if fullscreen is denied
+        })
+      }
+    }
+
+    // Try on first click/touch
+    document.addEventListener('click', requestFullscreen, { once: true })
+    document.addEventListener('touchstart', requestFullscreen, { once: true })
+
+    return () => {
+      document.removeEventListener('click', requestFullscreen)
+      document.removeEventListener('touchstart', requestFullscreen)
+    }
+  }, [])
+
   return (
     <div id="canvas-container">
       <Scene />

@@ -111,10 +111,10 @@ export const MainMenu = () => {
                             </h1>
 
                             <p style={{
-                                fontSize: 'clamp(0.8rem, 3vw, 1.2rem)',
+                                fontSize: 'clamp(0.6rem, 2.5vw, 1.2rem)',
                                 color: '#fff',
                                 marginTop: '1rem',
-                                letterSpacing: '0.5em',
+                                letterSpacing: '0.3em',
                                 textTransform: 'uppercase',
                                 opacity: 0.8,
                                 textShadow: '0 0 10px rgba(255, 255, 255, 0.5)'

@@ -20,6 +20,7 @@ export const Obstacles = () => {
     const increaseDistance = useGameStore((state) => state.increaseDistance)
 
     const lastComboReset = useRef(0)
+    const gameStartTime = useRef(0)
 
     const data = useMemo(() => {
         return new Array(COUNT).fill(0).map((_, i) => ({
@@ -31,12 +32,15 @@ export const Obstacles = () => {
 
     const dummy = useMemo(() => new THREE.Object3D(), [])
 
+    // Reset obstacles and start time when game starts
     useMemo(() => {
         data.forEach((item) => {
-            item.z = SPAWN_DISTANCE - Math.random() * 50
+            // Start obstacles much further back to avoid instant collision
+            item.z = SPAWN_DISTANCE - Math.random() * 80 // Increased from 50
             item.angle = Math.random() * Math.PI * 2
             item.nearMissTriggered = false
         })
+        gameStartTime.current = Date.now()
     }, [gameId, data])
 
     useFrame((_state, delta) => {
@@ -56,6 +60,9 @@ export const Obstacles = () => {
             resetCombo()
             lastComboReset.current = Date.now()
         }
+
+        // Invincibility for first 3 seconds (increased for safety)
+        const isInvincible = Date.now() - gameStartTime.current < 3000
 
         const playerPos = useGameStore.getState().playerPositionRef
 
@@ -95,8 +102,8 @@ export const Obstacles = () => {
             dummy.updateMatrix()
             meshRef.current!.setMatrixAt(i, dummy.matrix)
 
-            // Collision Detection
-            if (item.z > -1.5 && item.z < 1.5) {
+            // Collision Detection (skip if invincible)
+            if (!isInvincible && item.z > -1.5 && item.z < 1.5) {
                 // Calculate Obstacle World Position
                 const angle = item.angle - tunnelRotation
                 const wx = Math.cos(angle) * TUNNEL_RADIUS
